@@ -11,10 +11,14 @@ let path = __dirname + "/todos.json"
 
 // creating get method to show all todos from array
 app.get("/todos", (req, res) => {
+  //taking user id from headers
+  const {userid} = req.headers
   try {
     //reading file data and giving all data in response
     fs.readFile(path,{encoding : "utf-8"} ,(err,todos)=>{
       todos = todos ? JSON.parse(todos) : []
+      //filtering those todo who have the requested user id with posted user id 
+      todos = todos.filter(todo => userid == todo.userid)
        return res.status(200).json({ todos }) 
     })
    
@@ -26,10 +30,14 @@ app.get("/todos", (req, res) => {
 // creating a post method to create a new todo
 app.post("/todos", (req, res) => {
   try {
+    //taking user id from headers and giving it in todos
+    const {userid} = req.headers
+
+
     //first reading file data then writing new data
     fs.readFile(path , {encoding : "utf-8"},(err,todos)=>{
       todos = todos ? JSON.parse(todos) : []
-      todos.push({ ...req.body, isComplete: false, id: todos.length + 1 });
+      todos.push({ ...req.body, isComplete: false, id: todos.length + 1 ,userid});
       //writing new data
       fs.writeFile(path, JSON.stringify(todos) ,{encoding : "utf-8"} , (err)=>{
         if(err){
@@ -47,6 +55,12 @@ app.post("/todos", (req, res) => {
 
 //deleting a todo with the help of id
 app.delete("/todos/:id", (req, res) => {
+   //taking user id from headers and giving it in todos
+    const {userid} = req.headers
+    //checking if user is not loggedin then return
+    if(!userid){
+      return res.json({message : "you are not logged in"})
+    }
   try {
     // using splice
     // todos.splice(Number(req.params.id) - 1 , 1)
@@ -54,7 +68,8 @@ app.delete("/todos/:id", (req, res) => {
     //using filter method
     fs.readFile(path,{encoding:"utf-8"},(err , todos)=>{
          todos = todos? JSON.parse(todos) : []
-      let filteredTodo = todos.filter((todo) => todo.id != req.params.id);
+         let usersTodo = todos.filter(todo=> todo.userid == userid) // this will not work as the id is not matching
+      let filteredTodo = usersTodo.filter((todo) => todo.id != req.params.id);
       fs.writeFile(path,JSON.stringify(filteredTodo),{encoding:"utf-8"},  (err)=>{
         if(err){
           return res.status(500).send("try again"); 
