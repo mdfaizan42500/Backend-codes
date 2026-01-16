@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import toast from 'react-hot-toast'
 import axios from 'axios'
 import { Link, useNavigate } from "react-router-dom";
+import {useDispatch} from "react-redux"
+import { login } from "../utils/userSlice";
 
 function AuthForm({ type }) {
   const navigate = useNavigate()
@@ -10,6 +12,10 @@ function AuthForm({ type }) {
     email: "",
     password: "",
   });
+
+  //dispatch to send data to store
+const dispatch = useDispatch()
+
   async function handleAuth(e) {
     e.preventDefault();
     try {
@@ -28,8 +34,9 @@ function AuthForm({ type }) {
     const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/${type}` , 
         userData
     )
-    localStorage.setItem("user", JSON.stringify(res.data.user))
-    localStorage.setItem("token", JSON.stringify(res.data.token))
+    dispatch(login(res.data.user))
+    // localStorage.setItem("user", JSON.stringify(res.data.user))
+    // localStorage.setItem("token", JSON.stringify(res.data.token))
       toast.success(res.data.message)
       if(res.data.success){
         navigate("/")

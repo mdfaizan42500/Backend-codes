@@ -1,23 +1,40 @@
 import axios from "axios";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import { useSelector } from "react-redux";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
+// import EditorJS from "@editorjs/editorjs";
+// import Header from "@editorjs/header";
+// import List from "@editorjs/list";
+// import NestedList from "@editorjs/nested-list";
+// import CodeTool from "@editorjs/code";
+// import Marker from "@editorjs/marker";
+// import Underline from "@editorjs/underline";
+// import Embed from "@editorjs/embed";
+// import RawTool from "@editorjs/raw";
+// import ImageTool from "@editorjs/image";
+// import TextVariantTune from "@editorjs/text-variant-tune";
 
 function CreateBlog() {
   const {id} = useParams()
-  const token = JSON.parse(localStorage.getItem("token"));
+  const editorjsRef = useRef(null);
+
+  const formData = new FormData();
+  const {token} = useSelector((slice)=> slice.user)
+  const {title,description,image} = useSelector((slice)=> slice.selectedBlog)
   const navigate = useNavigate();
 
   const [blogData, setBlogData] = useState({
     title: "",
     description: "",
     image: null,
+    
   });
 
   async function handlePostBlog() {
     try {
       const res = await axios.post(
-        "http://localhost:3000/api/v1/blogs",
+        `${import.meta.env.VITE_BACKEND_URL}/blogs`,
         blogData,
         {
           headers: {
@@ -38,7 +55,7 @@ function CreateBlog() {
   async function handleUpdateBlog() {
     try {
       const res = await axios.patch(
-        "http://localhost:3000/api/v1/edit/" + id,
+        `${import.meta.env.VITE_BACKEND_URL}/edit/` + id,
         blogData,
         {
           headers: {
@@ -58,17 +75,22 @@ function CreateBlog() {
   }
 
    async function getBlogById() {
-     try {
-         const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/blogs/${id}`)
-        setBlogData({
-          title : res.data.blog.title,
-          description : res.data.blog.description,
-          image : res.data.blog.image
-        })
-        console.log(res)
-     } catch (error) {
-      toast.error(error.response.data.message)
-     }
+    //  try {
+    //      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/blogs/${id}`)
+    //     setBlogData({
+    //       title : res.data.blog.title,
+    //       description : res.data.blog.description,
+    //       image : res.data.blog.image
+    //     })
+    //     console.log(res)
+    //  } catch (error) {
+    //   toast.error(error.response.data.message)
+    //  }
+     setBlogData({
+         title : title,
+          description : description,
+          image : image
+       })
     }
 
     useEffect(()=>{
@@ -80,7 +102,7 @@ function CreateBlog() {
   return token == null ? (
     <Navigate to={"/Signup"} />
   ) :  (
-    <div className="w-[500px]">
+    <div className="w-[500px] mx-auto">
       <label htmlFor="">Title</label>
       <input
         type="text"

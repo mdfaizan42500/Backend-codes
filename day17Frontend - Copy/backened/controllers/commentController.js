@@ -35,6 +35,11 @@ async function addComment(req , res) {
       blog : id,
       user : creator,
       comment
+    }).then((comment) =>{
+      return comment.populate({
+        path : "user",
+        select : "name email",
+      })
     })
 
       await Blog.findByIdAndUpdate(id , {
@@ -43,7 +48,8 @@ async function addComment(req , res) {
 
     return res.status(200).json({
         success : true,
-        message : "comment added successfully"
+        message : "comment added successfully",
+        newComment
       })
   
     

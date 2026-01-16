@@ -1,6 +1,7 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { formatDate } from "../utils/formatDate";
 
 function Homepage() {
   const [blogs , setBlogs] = useState([])
@@ -9,7 +10,7 @@ function Homepage() {
     const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/blogs`)
     
     setBlogs(res.data.blogs)
-    console.log(res.data.blogs)
+    // console.log(res.data.blogs)
   }
 
   useEffect(()=>{
@@ -32,9 +33,21 @@ function Homepage() {
                 </h4>
 
                 <div className="flex gap-4">
-                  <p>{blog.createdAt}</p>
-                  <p>500</p>
-                  <p>200</p>
+                 <p>{formatDate(blog.createdAt)}</p>
+
+                   {/* like and comment butons */}
+          <div className='flex gap-3.5'>
+            
+              <div 
+                className='cursor-pointer flex gap-1'>
+                <i  className="fi fi-sr-thumbs-up text-lg"></i> 
+                <p className='text-lg'>{blog.Likes.length}</p>
+              </div>
+              <div className='cursor-pointer flex gap-1 '>
+                <i className="fi fi-sr-comment-alt text-lg"></i>
+                <p className='text-lg'>{blog.Comments.length}</p>
+              </div>
+          </div>
                 </div>
               </div>
 

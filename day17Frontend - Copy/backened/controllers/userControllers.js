@@ -61,10 +61,12 @@ async function  createUser(req,res) {
             success : true,
             message : "user logged in successfully" , 
            user : {
+            id : newUser._id,
             name : newUser.name,
             email : newUser.email,
+            token
            },
-           token
+           
         })
     } catch (error) {
        return res.status(500).json({
@@ -123,11 +125,12 @@ async function login(req,res) {
             success : true,
             message : "user logged in successfully" , 
              user : {
+                id : checkForExistingUser._id,
             name : checkForExistingUser.name,
             email : checkForExistingUser.email,
-            
+             token
            },
-           token
+          
            
         })
 
