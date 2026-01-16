@@ -1,6 +1,7 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { formatDate } from "../utils/formatDate";
 
 function Homepage() {
   const [blogs , setBlogs] = useState([])
@@ -9,7 +10,7 @@ function Homepage() {
     const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/blogs`)
     
     setBlogs(res.data.blogs)
-    console.log(res.data.blogs)
+    // console.log(res.data.blogs)
   }
 
   useEffect(()=>{
@@ -32,7 +33,7 @@ function Homepage() {
                 </h4>
 
                 <div className="flex gap-4">
-                  <p>{blog.createdAt}</p>
+                 <p>{formatDate(blog.createdAt)}</p>
 
                    {/* like and comment butons */}
           <div className='flex gap-3.5'>
