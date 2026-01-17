@@ -10,6 +10,10 @@ const blogSchema = new mongoose.Schema(
     description: {
       type: String,
       required: true,
+    }, 
+    content: {
+      type: Object,
+      required: true,
     },
     blogId :{
       type : String,
@@ -37,7 +41,7 @@ const blogSchema = new mongoose.Schema(
       { type: mongoose.Schema.Types.ObjectId, 
       ref: "user" }
     ],
-    Comments : [
+    comments : [
       {type : mongoose.Schema.Types.ObjectId,
         ref : "comment",
       }

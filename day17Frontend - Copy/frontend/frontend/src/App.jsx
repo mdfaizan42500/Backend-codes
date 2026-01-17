@@ -5,6 +5,7 @@ import Navbar from './components/Navbar'
 import Homepage from './components/Homepage'
 import CreateBlog from './pages/CreateBlog'
 import BlogPage from './pages/BlogPage'
+import VerifyUser from "./components/VerifyUser";
 
 function App() {
   return (
@@ -17,6 +18,10 @@ function App() {
         <Route path='/Create-blog' element={<CreateBlog />}></Route>
         <Route path='/blog/:id' element={<BlogPage />}></Route>
         <Route path='/edit/:id' element={<CreateBlog />}></Route>
+                            <Route
+                        path="/verify-email/:verificationToken"
+                        element={<VerifyUser/>}
+                    ></Route>
       </Route>
    </Routes>
    </div>

@@ -9,7 +9,7 @@ async function generateJWT(payload){ // payload is the data that is given from t
 }
 
 //verify token 
-async function verifyToken(token) {
+async function verifyJWT (token) {
     try {
       let data =   await jwt.verify(token ,  process.env.JWT_SECRET_KEY )   
         return data
@@ -25,4 +25,4 @@ async function decodeJWT(token) {
     return decoded
 }
 
-module.exports = {generateJWT , verifyToken , decodeJWT}
+module.exports = {generateJWT , verifyJWT  , decodeJWT}

@@ -6,6 +6,7 @@ const {
   updateUser,
   deleteUser,
   login,
+  verifyToken
 } = require("../controllers/userControllers");
 // this is for route because we are using app in server.js
 const route = express.Router();
@@ -29,5 +30,11 @@ route.patch("/users/:id", updateUser);
 
 // delete user detail
 route.delete("/users/:id", deleteUser);
+
+
+// verify email/token
+
+route.get("/verify-email/:verificationToken" , verifyToken)
+
 
 module.exports = route;

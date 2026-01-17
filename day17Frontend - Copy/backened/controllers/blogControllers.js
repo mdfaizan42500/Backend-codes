@@ -14,8 +14,9 @@ async function createBlog(req, res) {
 
     const { title, description, draft } = req.body;
     // taking the file from req.file
-    const image = req.file;
+    const { image, images } = req.files;
 
+    const content = JSON.parse(req.body.content);
     
     //creating a blog id for its url
     const blogId = title.toLowerCase().split(" ").join("-")+ "-" + randomUUID() // by simple methods
@@ -44,11 +45,37 @@ async function createBlog(req, res) {
       });
     }
 
+        if (!content) {
+      return res.status(400).json({
+        message: "Please add some content",
+      });
+    }
+
     // taking the url of image
-    const { secure_url, public_id } = await uploadImage(image.path);
+     let imageIndex = 0;
+
+    for (let i = 0; i < content.blocks.length; i++) {
+      const block = content.blocks[i];
+      if (block.type === "image") {
+        const { secure_url, public_id } = await uploadImage(
+          `data:image/jpeg;base64,${images[imageIndex].buffer.toString(
+            "base64"
+          )}`
+        );
+
+        block.data.file = {
+          url: secure_url,
+          imageId: public_id,
+        };
+
+        imageIndex++;
+      }
+    }
 
     //deleting the image from its folder after getting the url
-    fs.unlinkSync(image.path);
+        const { secure_url, public_id } = await uploadImage(
+      `data:image/jpeg;base64,${image[0].buffer.toString("base64")}`
+    );
 
     
 
@@ -60,7 +87,8 @@ async function createBlog(req, res) {
       creator,
       image: secure_url,
       imageId: public_id,
-      blogId
+      blogId ,
+      content,
     });
 
     // updating the user that he just uploaded the blog so providing id of that blog to user
@@ -111,7 +139,7 @@ async function getBlogById(req, res) {
     const { blogId } = req.params;
     const blog = await Blog.findOne({blogId})
       .populate({
-        path: "Comments",
+        path: "comments",
         populate: {
           path: "user",
           select: "name  email",
@@ -152,8 +180,10 @@ async function updateBlog(req, res) {
     const creator = req.user;
     
     const { title, description, draft } = req.body;
-//taking image for updation 
-    const image = req.file
+
+        const content = JSON.parse(req.body.content);
+    const existingImages = JSON.parse(req.body.existingImages);
+
     // finding the blog on the basis of id
     const blog = await Blog.findOne({blogId : id})
 
@@ -170,31 +200,56 @@ async function updateBlog(req, res) {
       });
     }
 
-    //updating the blog
-    // commenting this because we will use another method for at as it is not returning the updated blog because  of updateOne method
-    // const updatedBlog = await Blog.updateOne(
-    //   { _id: id },
-    //   {
-    //     title,
-    //     description,
-    //     draft,
-    //   },
-    //   { new: true }
-    // );
+    let imagesToDelete = blog.content.blocks
+      .filter((block) => block.type == "image")
+      .filter(
+        (block) => !existingImages.find(({ url }) => url == block.data.file.url)
+      )
+      .map((block) => block.data.file.imageId);
+
+    // if (imagesToDelete.length > 0) {
+    //   await Promise.all(
+    //     imagesToDelete.map((id) => deleteImagefromCloudinary(id))
+    //   );
+    // }
+
+    if (req.files.images) {
+      let imageIndex = 0;
+
+      for (let i = 0; i < content.blocks.length; i++) {
+        const block = content.blocks[i];
+        if (block.type === "image" && block.data.file.image) {
+          const { secure_url, public_id } = await uploadImage(
+            `data:image/jpeg;base64,${req.files.images[
+              imageIndex
+            ].buffer.toString("base64")}`
+          );
+
+          block.data.file = {
+            url: secure_url,
+            imageId: public_id,
+          };
+
+          imageIndex++;
+        }
+      }
+    }
+
+
 
     //if image is present to update then remove it from cloudinary then upload new image and them set its detail in db then remove new image from system
-    if(image){
+     if (req?.files?.image){
       await deleteImageFromCloud(blog.imageId)
-      const {secure_url , public_id} = await uploadImage(image.path)
+      const {secure_url , public_id} = await uploadImage(`data:image/jpeg;base64,${req?.files?.image[0]?.buffer?.toString("base64")}`)
       blog.image = secure_url
       blog.imageId = public_id
-      fs.unlinkSync(image.path)
     }
 
     // using this to update the blog and return it
     blog.title = title || blog.title;
     blog.description = description || blog.description;
     blog.draft = draft || blog.draft;
+        blog.content = content || blog.content;
 
     blog.save();
 

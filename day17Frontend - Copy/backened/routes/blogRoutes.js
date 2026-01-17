@@ -15,13 +15,13 @@ const   route = express.Router();
 // blogs route
 
 //to create a new blog
-route.post("/blogs", verifyUser, upload.single("image"), createBlog);
+route.post("/blogs", verifyUser,  upload.fields([{ name: "image", maxCount  : 1 }, { name: "images" }]), createBlog);
 // to get all blogs
 route.get("/blogs", getBlogs);
 // to get a particular blog on the basis of id
 route.get("/blogs/:blogId", getBlogById);
 //to update a blog
-route.patch("/edit/:id", verifyUser, upload.single("image"), updateBlog);
+route.patch("/edit/:id", verifyUser,   upload.fields([{ name: "image", maxCount: 1 }, { name: "images" }]), updateBlog);
 // to delete a blog
 route.delete("/blogs/:id", verifyUser, deleteBlog);
 // to like or unlike a blog

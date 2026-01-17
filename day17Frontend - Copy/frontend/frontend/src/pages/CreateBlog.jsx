@@ -1,19 +1,21 @@
 import axios from "axios";
 import React, { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-// import EditorJS from "@editorjs/editorjs";
-// import Header from "@editorjs/header";
-// import List from "@editorjs/list";
-// import NestedList from "@editorjs/nested-list";
-// import CodeTool from "@editorjs/code";
-// import Marker from "@editorjs/marker";
-// import Underline from "@editorjs/underline";
-// import Embed from "@editorjs/embed";
-// import RawTool from "@editorjs/raw";
-// import ImageTool from "@editorjs/image";
-// import TextVariantTune from "@editorjs/text-variant-tune";
+import EditorJS from "@editorjs/editorjs";
+import Header from "@editorjs/header";
+import List from "@editorjs/list";
+import NestedList from "@editorjs/nested-list";
+import CodeTool from "@editorjs/code";
+import Marker from "@editorjs/marker";
+import Underline from "@editorjs/underline";
+import Embed from "@editorjs/embed";
+import RawTool from "@editorjs/raw";
+import ImageTool from "@editorjs/image";
+import TextVariantTune from "@editorjs/text-variant-tune";
+import { setIsOpen } from "../utils/commentSlice";
+import { removeSelectedBlog } from "../utils/selectedBlogSlice";
 
 function CreateBlog() {
   const {id} = useParams()
@@ -21,21 +23,33 @@ function CreateBlog() {
 
   const formData = new FormData();
   const {token} = useSelector((slice)=> slice.user)
-  const {title,description,image} = useSelector((slice)=> slice.selectedBlog)
+  const {title,description,image , content} = useSelector((slice)=> slice.selectedBlog)
   const navigate = useNavigate();
+    const dispatch = useDispatch();
 
   const [blogData, setBlogData] = useState({
     title: "",
     description: "",
     image: null,
-    
+        content: "",
   });
 
   async function handlePostBlog() {
+
+        formData.append("title", blogData.title);
+    formData.append("description", blogData.description);
+    formData.append("image", blogData.image);
+    formData.append("content", JSON.stringify(blogData.content));
+
+    blogData.content.blocks.forEach((block) => {
+      if (block.type === "image") {
+        formData.append("images", block.data.file.image);
+      }
+    });
     try {
       const res = await axios.post(
         `${import.meta.env.VITE_BACKEND_URL}/blogs`,
-        blogData,
+        formData,
         {
           headers: {
             "Content-Type": "multipart/form-data",
@@ -53,10 +67,40 @@ function CreateBlog() {
   }
 
   async function handleUpdateBlog() {
+
+    let formData = new FormData();
+
+    formData.append("title", blogData.title);
+    formData.append("description", blogData.description);
+    formData.append("image", blogData.image);
+
+    formData.append("content", JSON.stringify(blogData.content));
+
+    let existingImages = [];
+
+    blogData.content.blocks.forEach((block) => {
+      if (block.type === "image") {
+        if (block.data.file.image) {
+          formData.append("images", block.data.file.image);
+        } else {
+          existingImages.push({
+            url: block.data.file.url,
+            imageId: block.data.file.imageId,
+          });
+        }
+      }
+    });
+
+    // for (let data of formData.entries()) {
+    //   console.log(data);
+    // }
+
+        formData.append("existingImages", JSON.stringify(existingImages));
+
     try {
       const res = await axios.patch(
         `${import.meta.env.VITE_BACKEND_URL}/edit/` + id,
-        blogData,
+        formData,
         {
           headers: {
             "Content-Type": "multipart/form-data",
@@ -89,9 +133,64 @@ function CreateBlog() {
      setBlogData({
          title : title,
           description : description,
-          image : image
+          image : image,
+                content: content,
        })
     }
+
+
+    function initializeEditorjs() {
+    editorjsRef.current = new EditorJS({
+      holder: "editorjs",
+      placeholder: "write something...",
+            data: content,
+      tools: {
+        header: {
+          class: Header,
+          inlineToolbar: true,
+          config: {
+            placeholder: "Enter a header",
+            levels: [2, 3, 4],
+            defaultLevel: 3,
+          },
+        },
+        List: {
+          class: NestedList,
+          config: {},
+          inlineToolbar: true,
+        },
+        code: CodeTool,
+        Marker: Marker,
+        Underline: Underline,
+        Embed: Embed,
+        raw: RawTool,
+        textVariant: TextVariantTune,
+        image: {
+          class: ImageTool,
+          config: {
+            uploader: {
+              uploadByFile: async (image) => {
+                // console.log(image);
+                return {
+                  success: 1,
+
+                  file: {
+                    url: URL.createObjectURL(image),
+                    image,
+                  },
+                };
+              },
+            },
+          },
+        },
+      },
+      tunes: ["textVariant"],
+      onChange: async () => {
+        let data = await editorjsRef.current.save();
+        setBlogData((blogData) => ({ ...blogData, content: data }));
+      },
+    });
+  }
 
     useEffect(()=>{
       if(id){
@@ -99,37 +198,67 @@ function CreateBlog() {
       }
     },[id])
 
+     useEffect(() => {
+    if (editorjsRef.current === null) {
+      initializeEditorjs();
+    }
+      return () => {
+      //   console.log(window.location.pathname); // currnt path
+      //   console.log(location.pathname); //previous path
+      editorjsRef.current = null;
+      dispatch(setIsOpen(false));
+      if (
+        window.location.pathname !== `/edit/${id}` &&
+        window.location.pathname !== `/blog/${id}`
+      ) {
+        dispatch(removeSelectedBlog());
+      }
+    };
+    // return () => {
+    //   editorjsRef.current = null;
+    // };
+  }, []);
+  
+
   return token == null ? (
     <Navigate to={"/Signup"} />
   ) :  (
     <div className="w-[500px] mx-auto">
-      <label htmlFor="">Title</label>
-      <input
-        type="text"
-        placeholder="Enter Title"
-        onChange={(e) =>
-          setBlogData((blogData) => ({ ...blogData, title: e.target.value }))
-        }
-        value={blogData.title}
-      />
-      <br />
-      <label htmlFor="">Description</label>
-      <input
-        type="text"
-        placeholder="Enter description"
-        onChange={(e) =>
-          setBlogData((blogData) => ({
-            ...blogData,
-            description: e.target.value,
-          }))
-        }
-        value={blogData.description}
-      />
-      <br />
+       <div className="my-4">
+        <h2 className="text-2xl font-semibold my-2">Title</h2>
+        <input
+          type="text"
+          placeholder="title"
+          onChange={(e) =>
+            setBlogData((blogData) => ({
+              ...blogData,
+              title: e.target.value,
+            }))
+          }
+          value={blogData.title}
+          className="border focus:outline-none rounded-lg w-full p-2 placeholder:text-lg"
+        />
+      </div>
+
+      <div className="my-4">
+        <h2 className="text-2xl font-semibold my-2">Description</h2>
+        <textarea
+          type="text"
+          placeholder="description"
+          className=" h-[100px] resize-none w-full p-3 rounded-lg border text-lg focus:outline-none"
+          onChange={(e) =>
+            setBlogData((blogData) => ({
+              ...blogData,
+              description: e.target.value,
+            }))
+          }
+        />
+
 
       <div>
+                <h2 className="text-2xl font-semibold my-2">Image</h2>
         <label htmlFor="image" className="bg-blue-400">
-          {blogData.image ?  ( <img src={typeof(blogData.image) == "string" ? blogData.image : URL.createObjectURL(blogData.image)}  className="w-[200%] h-[400px] object-contain"/>) : (<div className="bg-blue-400 aspect-video flex justify-center items-center text-xl font-bold">Select image</div>)}
+          {blogData.image ?  ( <img src={typeof(blogData.image) == "string" ? blogData.image : URL.createObjectURL(blogData.image)}  className="w-[200%] h-[400px] object-containborder rounded-lg"/>) : (<div className="bg-white border rounded-lg opacity-50 aspect-video flex justify-center items-center text-xl font-bold">Select image</div>)}
           
         </label>
       <input
@@ -143,8 +272,16 @@ function CreateBlog() {
       />
       </div>
       
-      <br />
-      <button className="cursor-pointer bg-amber-500" onClick={id ? handleUpdateBlog : handlePostBlog}>{id ? "Update blog" : "Post blog"}</button>
+            <div className="my-4">
+        <h2 className="text-2xl font-semibold my-2">Content</h2>
+        <div id="editorjs" className="w-full"></div>
+      </div>
+
+            <button
+        className="bg-blue-500 text-lg py-4 px-7 rounded-full  font-semibold text-white my-6 "
+        onClick={id ? handleUpdateBlog : handlePostBlog}
+      >{id ? "Update blog" : "Post blog"}</button>
+    </div>
     </div>
   ) 
 }

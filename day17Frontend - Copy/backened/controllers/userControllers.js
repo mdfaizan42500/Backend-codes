@@ -1,6 +1,7 @@
 const User = require("../models/userSchema")
 const bcrypt = require('bcrypt');
-const {generateJWT , verifyToken} = require("../utils/generateToken");
+const {generateJWT , verifyJWT } = require("../utils/generateToken");
+const transporter = require("../utils/transporter");
 
 
 //creating the logic of user creation
@@ -32,12 +33,36 @@ async function  createUser(req,res) {
 
 
          // checking if user already exist 
-        const checkUserExist = await User.findOne({email})
-        if(checkUserExist){
-            return res.status(400).json({
-                success : false,
-                message : "user already exist with this email"
-            })
+        const checkForexistingUser  = await User.findOne({email})
+        console.log(checkForexistingUser)
+        if(checkForexistingUser ){
+                  if (checkForexistingUser.isVerified) {
+        return res.status(400).json({
+          success: false,
+          message: "User already registered with this email",
+        });
+      } else {
+        let verificationToken = await generateJWT({
+          email: checkForexistingUser.email,
+          id: checkForexistingUser._id,
+        });
+
+        //email logic
+
+        const sendingEmail = transporter.sendMail({
+          from: "btblfaizan@gmail.com",
+          to: checkForexistingUser.email,
+          subject: "Email Verification",
+          text: "Please verify your email",
+          html: `<h1>Click on the link to verify your email</h1>
+              <a href="http://localhost:5173/verify-email/${verificationToken}">Verify Email</a>`,
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: "Please Check Your Email to verify your account",
+        });
+      }
         }
 
         // hashing the password before creating all the detail of new user
@@ -52,20 +77,23 @@ async function  createUser(req,res) {
         })
 
         //providing jwt 
-        let token = await generateJWT({
+        let verificationToken  = await generateJWT({
             email : newUser.email,
             id : newUser._id
         }) // passing the data as payload
+
+            const sendingEmail = transporter.sendMail({
+      from: "btblfaizan@gmail.com",
+      to: email,
+      subject: "Email Verification",
+      text: "Please verify your email",
+      html: `<h1>Click on the link to verify your email</h1>
+          <a href="http://localhost:5173/verify-email/${verificationToken}">Verify Email</a>`,
+    });
         
         return res.status(200).json({
             success : true,
-            message : "user logged in successfully" , 
-           user : {
-            id : newUser._id,
-            name : newUser.name,
-            email : newUser.email,
-            token
-           },
+                 message: "Please Check Your Email to verify your account",
            
         })
     } catch (error) {
@@ -77,72 +105,120 @@ async function  createUser(req,res) {
     }
 }
 
-// creating login function
-async function login(req,res) {
-    try {
-        const {email , password} = req.body
+async function verifyToken(req, res) {
+  try {
+    const { verificationToken } = req.params;
 
-         if(!email){
-            return res.status(400).json({
-            success : false,
-            message : "Please enter email"
-        })
-        }
-        if(!password){
-            return res.status(400).json({
-            success : false,
-            message : "Please enter password"
-        })
-        }
+    const verifyToken = await verifyJWT(verificationToken);
 
-        const checkForExistingUser = await User.findOne({email})
-
-       if(!checkForExistingUser){
-            return res.status(400).json({
-                success : false,
-                message : "user not registered"
-            })
-        }
-
-        //comparing password using bcrypt
-        let checkPass = await bcrypt.compare(password , checkForExistingUser.password)
-
-        // checking if the password is same or not 
-        if(!checkPass){
-             return res.status(400).json({
-                success : false,
-                message : "wrong credentials"
-            })
-        }
-
-        //providing token to it also 
-        let token = await generateJWT({
-            email : checkForExistingUser.email,
-            id : checkForExistingUser._id
-        })
-
-         return res.status(200).json({
-            success : true,
-            message : "user logged in successfully" , 
-             user : {
-                id : checkForExistingUser._id,
-            name : checkForExistingUser.name,
-            email : checkForExistingUser.email,
-             token
-           },
-          
-           
-        })
-
-    } catch (error) {
-         return res.status(500).json({
-            success : false,
-            error : error.message,
-            message : "Please try again"
-            
-        })
+    if (!verifyToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Token/Email expired",
+      });
     }
+    const { id } = verifyToken;
+    const user = await User.findByIdAndUpdate(
+      id,
+      { isVerified: true },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "User not exist",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Email verified successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Please try again",
+      error: err.message,
+    });
+  }
 }
+
+// creating login function
+async function login(req, res) {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "User not registered",
+      });
+    }
+
+    if (!user.isVerified) {
+      const verificationToken = await generateJWT({
+        email: user.email,
+        id: user._id,
+      });
+
+      await transporter.sendMail({
+        from: "btblfaizan@gmail.com",
+        to: user.email,
+        subject: "Email Verification",
+        html: `<a href="http://localhost:5173/verify-email/${verificationToken}">
+                Verify Email
+              </a>`,
+      });
+
+      return res.status(401).json({
+        success: false,
+        message: "Please verify your email first",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Wrong credentials",
+      });
+    }
+
+    const token = await generateJWT({
+      email: user.email,
+      id: user._id,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "User logged in successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        token,
+      },
+    });
+  } catch (error) {
+    console.error("LOGIN ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
+
 
 //creating the logic of getting all users
 async function getAllUsers(req,res) {
@@ -261,4 +337,4 @@ async function deleteUser(req,res){
     }
 }
 
-module.exports = {createUser , getAllUsers ,getUserbyId, updateUser ,deleteUser , login}
+module.exports = {createUser , getAllUsers ,getUserbyId, updateUser ,deleteUser , login , verifyToken}

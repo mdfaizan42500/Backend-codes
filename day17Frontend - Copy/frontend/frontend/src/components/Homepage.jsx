@@ -45,7 +45,7 @@ function Homepage() {
               </div>
               <div className='cursor-pointer flex gap-1 '>
                 <i className="fi fi-sr-comment-alt text-lg"></i>
-                <p className='text-lg'>{blog.Comments.length}</p>
+                <p className='text-lg'>{blog.Comments?.length}</p>
               </div>
           </div>
                 </div>

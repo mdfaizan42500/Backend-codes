@@ -1,4 +1,4 @@
-const { verifyToken } = require("../utils/generateToken")
+const { verifyJWT  } = require("../utils/generateToken")
 
 const verifyUser = async (req,res,next) => {
     try {
@@ -14,7 +14,7 @@ const verifyUser = async (req,res,next) => {
 
     // if token is present then verify it that it is from out generated part or not and then take the data from that
     try {
-        let user = await verifyToken(token)
+        let user = await verifyJWT (token)
         // if the user or token is wrong then
         if(!user){
             return res.status(400).json({
